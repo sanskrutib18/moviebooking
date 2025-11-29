@@ -1,47 +1,143 @@
 pipeline {
     agent any
+    
     environment {
-        IMAGE = "your-docker-repo/movie-website:${env.BUILD_NUMBER}"
-        DOCKER_REGISTRY = "your-docker-repo"
+        // Update these values according to your college setup
+        DOCKER_REGISTRY = "localhost:5000"  // Nexus Docker registry
+        IMAGE_NAME = "movie-website"
+        IMAGE_TAG = "${env.BUILD_NUMBER}"
+        FULL_IMAGE_NAME = "${DOCKER_REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG}"
+        SONAR_PROJECT_KEY = "2401014-moviebooking"
+        KUBECONFIG_CREDENTIAL_ID = "kubeconfig"
+        DOCKER_CREDENTIAL_ID = "nexus-docker-creds"
     }
+    
     stages {
         stage('Checkout') {
             steps {
+                echo 'Checking out source code...'
                 checkout scm
             }
         }
-
-        stage('SonarQube Analysis') {
+        
+        stage('Code Quality - SonarQube Analysis') {
             steps {
-                // Requires Jenkins SonarQube plugin and a configured SonarQube server named 'SonarQube'
-                withSonarQubeEnv('SonarQube') {
-                    sh 'sonar-scanner -Dproject.settings=sonar-project.properties'
+                echo 'Running SonarQube analysis...'
+                script {
+                    // Use SonarQube scanner
+                    withSonarQubeEnv('SonarQube') {
+                        sh '''
+                            sonar-scanner \
+                            -Dsonar.projectKey=${SONAR_PROJECT_KEY} \
+                            -Dsonar.sources=movie-website \
+                            -Dsonar.host.url=${SONAR_HOST_URL} \
+                            -Dsonar.login=${SONAR_AUTH_TOKEN}
+                        '''
+                    }
                 }
             }
         }
-
-        stage('Build Docker Image') {
+        
+        stage('Quality Gate') {
             steps {
-                sh "docker build -t ${IMAGE} movie-website"
+                echo 'Waiting for SonarQube Quality Gate...'
+                timeout(time: 5, unit: 'MINUTES') {
+                    waitForQualityGate abortPipeline: true
+                }
             }
         }
-
-        stage('Push Docker Image') {
+        
+        stage('Build Docker Image') {
             steps {
-                // Configure credentials in Jenkins and replace 'docker-creds' with your credentials id
-                withCredentials([usernamePassword(credentialsId: 'docker-creds', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
-                    sh 'echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin '
-                    sh "docker push ${IMAGE}"
+                echo 'Building Docker image...'
+                script {
+                    dir('movie-website') {
+                        sh "docker build -t ${FULL_IMAGE_NAME} ."
+                        sh "docker tag ${FULL_IMAGE_NAME} ${DOCKER_REGISTRY}/${IMAGE_NAME}:latest"
+                    }
+                }
+            }
+        }
+        
+        stage('Push to Nexus Registry') {
+            steps {
+                echo 'Pushing Docker image to Nexus registry...'
+                script {
+                    withCredentials([usernamePassword(
+                        credentialsId: "${DOCKER_CREDENTIAL_ID}",
+                        usernameVariable: 'DOCKER_USER',
+                        passwordVariable: 'DOCKER_PASS'
+                    )]) {
+                        sh '''
+                            echo $DOCKER_PASS | docker login ${DOCKER_REGISTRY} -u $DOCKER_USER --password-stdin
+                            docker push ${FULL_IMAGE_NAME}
+                            docker push ${DOCKER_REGISTRY}/${IMAGE_NAME}:latest
+                        '''
+                    }
+                }
+            }
+        }
+        
+        stage('Deploy to Kubernetes') {
+            steps {
+                echo 'Deploying to Kubernetes cluster...'
+                script {
+                    withCredentials([file(credentialsId: "${KUBECONFIG_CREDENTIAL_ID}", variable: 'KUBECONFIG')]) {
+                        sh '''
+                            # Update deployment image
+                            sed -i "s|your-docker-repo/movie-website:latest|${FULL_IMAGE_NAME}|g" movie-website/k8s/deployment.yaml
+                            
+                            # Apply Kubernetes manifests
+                            kubectl apply -f movie-website/k8s/deployment.yaml
+                            kubectl apply -f movie-website/k8s/service.yaml
+                            
+                            # Wait for deployment to be ready
+                            kubectl rollout status deployment/movie-website --timeout=300s
+                            
+                            # Get service information
+                            kubectl get services movie-website
+                        '''
+                    }
+                }
+            }
+        }
+        
+        stage('Verify Deployment') {
+            steps {
+                echo 'Verifying deployment...'
+                script {
+                    withCredentials([file(credentialsId: "${KUBECONFIG_CREDENTIAL_ID}", variable: 'KUBECONFIG')]) {
+                        sh '''
+                            # Check if pods are running
+                            kubectl get pods -l app=movie-website
+                            
+                            # Check deployment status
+                            kubectl describe deployment movie-website
+                        '''
+                    }
                 }
             }
         }
     }
+    
     post {
+        always {
+            echo 'Cleaning up...'
+            sh '''
+                # Clean up local Docker images to save space
+                docker rmi ${FULL_IMAGE_NAME} || true
+                docker rmi ${DOCKER_REGISTRY}/${IMAGE_NAME}:latest || true
+            '''
+        }
         success {
-            echo "Pipeline succeeded. Image: ${IMAGE}"
+            echo "✅ Pipeline succeeded! Image: ${FULL_IMAGE_NAME}"
+            echo "🚀 Application deployed successfully to Kubernetes"
         }
         failure {
-            echo 'Pipeline failed.'
+            echo "❌ Pipeline failed. Check logs for details."
+        }
+        unstable {
+            echo "⚠️ Pipeline completed with warnings."
         }
     }
 }

@@ -1,0 +1,31 @@
+# Git
+.git
+.gitignore
+
+# Node / JS tooling
+node_modules
+npm-debug.log
+yarn.lock
+package-lock.json
+pnpm-lock.yaml
+
+# Docker files (not needed inside image)
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# Env / secrets
+.env
+.env.*
+
+# OS / editor junk
+.DS_Store
+Thumbs.db
+.vscode
+.idea
+
+# Logs and build artifacts
+*.log
+dist
+build
+coverage
