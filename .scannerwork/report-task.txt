@@ -1,0 +1,6 @@
+projectKey=2401014-moviebooking
+serverUrl=http://sonarqube.imcc.com
+serverVersion=25.1.0.102122
+dashboardUrl=http://sonarqube.imcc.com/dashboard?id=2401014-moviebooking
+ceTaskId=9cf80827-6846-4cb5-a2c9-90e6aab24492
+ceTaskUrl=http://sonarqube.imcc.com/api/ce/task?id=9cf80827-6846-4cb5-a2c9-90e6aab24492
