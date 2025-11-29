@@ -25,7 +25,7 @@ spec:
     spec:
       containers:
         - name: movie-website
-          image: localhost:5000/movie-website:latest
+          image: nexus-service-for-docker-hosted-registry.nexus.svc.cluster.local:8085/2401014_moviebooking/movie-website:latest
           imagePullPolicy: Always
           ports:
             - containerPort: 80

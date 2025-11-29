@@ -89,8 +89,15 @@ spec:
         stage('Quality Gate') {
             steps {
                 echo 'Waiting for SonarQube Quality Gate...'
-                timeout(time: 5, unit: 'MINUTES') {
-                    waitForQualityGate abortPipeline: true
+                container('sonar-scanner') {
+                    timeout(time: 5, unit: 'MINUTES') {
+                        script {
+                            def qg = waitForQualityGate()
+                            if (qg.status != 'OK') {
+                                error "Pipeline aborted due to quality gate failure: ${qg.status}"
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -132,7 +139,7 @@ spec:
                     withCredentials([file(credentialsId: "${KUBECONFIG_CREDENTIAL_ID}", variable: 'KUBECONFIG')]) {
                         sh '''
                             # Update deployment image
-                            sed -i "s|your-docker-repo/movie-website:latest|${FULL_IMAGE_NAME}|g" movie-website/k8s/deployment.yaml
+                            sed -i "s|nexus-service-for-docker-hosted-registry.nexus.svc.cluster.local:8085/2401014_moviebooking/movie-website:latest|${FULL_IMAGE_NAME}|g" movie-website/k8s/deployment.yaml
 
                             # Apply Kubernetes manifests
                             kubectl apply -f movie-website/k8s/deployment.yaml
