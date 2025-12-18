@@ -57,7 +57,7 @@ spec:
         SONAR_HOST        = "http://my-sonarqube-sonarqube.sonarqube.svc.cluster.local:9000"
         SONAR_PROJECT_KEY = "2401014-moviebooking"
         SONAR_PROJECT_NAME = "2401014"
-        SONAR_TOKEN       = "sqp_0f5cf6f44677d8313612fd2c2eea0d8e3ff950e5"
+        SONAR_TOKEN       = "sqp_34d6a677093e00da2be6a55db046c1dac3735a46"
 
         KUBECONFIG_CREDENTIAL_ID = "kubeconfig-secret"
     }
