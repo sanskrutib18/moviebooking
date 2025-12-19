@@ -46,14 +46,12 @@ spec:
     }
 
     environment {
-        // College Nexus Docker registry (inside cluster)
         DOCKER_REGISTRY      = "nexus-service-for-docker-hosted-registry.nexus.svc.cluster.local:8085"
 
         IMAGE_NAME           = "2401014_moviebooking/movie-website"
         IMAGE_TAG            = "${env.BUILD_NUMBER}"
         FULL_IMAGE_NAME      = "${DOCKER_REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG}"
 
-        // SonarQube (SQ) details for your project
         SONAR_HOST           = "http://my-sonarqube-sonarqube.sonarqube.svc.cluster.local:9000"
         SONAR_PROJECT_KEY    = "2401014-moviebooking"
         SONAR_PROJECT_NAME   = "2401014"
@@ -92,7 +90,8 @@ spec:
                 container('dind') {
                     sh """
                         echo "=== Building Docker image ==="
-                        docker build -t ${FULL_IMAGE_NAME} movie-website
+                        # Dockerfile is at repo root, so use '.' as context
+                        docker build -t ${FULL_IMAGE_NAME} .
                         docker tag ${FULL_IMAGE_NAME} ${DOCKER_REGISTRY}/${IMAGE_NAME}:latest
                     """
                 }
@@ -124,15 +123,15 @@ spec:
                             # Update deployment image
                             sed -i "s|image:.*movie-website:latest|image: ${FULL_IMAGE_NAME}|g" movie-website/k8s/deployment.yaml
 
-                            # Apply Kubernetes manifests
-                            kubectl apply -f movie-website/k8s/deployment.yaml
-                            kubectl apply -f movie-website/k8s/service.yaml
+                            # Apply Kubernetes manifests to your namespace
+                            kubectl apply -f movie-website/k8s/deployment.yaml -n 2401014
+                            kubectl apply -f movie-website/k8s/service.yaml -n 2401014
 
                             # Wait for deployment to be ready
-                            kubectl rollout status deployment/movie-website --timeout=300s
+                            kubectl rollout status deployment/movie-website -n 2401014 --timeout=300s
 
                             # Get service information
-                            kubectl get services movie-website
+                            kubectl get services movie-website -n 2401014
                         """
                     }
                 }
@@ -145,11 +144,8 @@ spec:
                 container('kubectl') {
                     withCredentials([file(credentialsId: "${KUBECONFIG_CREDENTIAL_ID}", variable: 'KUBECONFIG')]) {
                         sh '''
-                            # Check if pods are running
-                            kubectl get pods -l app=movie-website
-
-                            # Check deployment status
-                            kubectl describe deployment movie-website
+                            kubectl get pods -n 2401014 -l app=movie-website
+                            kubectl describe deployment movie-website -n 2401014
                         '''
                     }
                 }
