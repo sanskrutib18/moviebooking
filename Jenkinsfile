@@ -109,14 +109,12 @@ spec:
         stage('Deploy to Kubernetes') {
             steps {
                 container('kubectl') {
-                    dir('movie-website/k8s') {
-                        sh '''
-                            echo "Deploying movie-website application..."
-                            kubectl apply -f deployment.yaml -n 2401014
-                            kubectl apply -f service.yaml -n 2401014
-                            kubectl rollout status deployment/movie-website -n 2401014 --timeout=120s
-                        '''
-                    }
+                    sh '''
+                        echo "Deploying movie-website application..."
+                        kubectl apply -f movie-website/k8s/deployment.yaml -n 2401014
+                        kubectl apply -f movie-website/k8s/service.yaml -n 2401014
+                        kubectl rollout status deployment/movie-website -n 2401014 --timeout=120s
+                    '''
                 }
             }
         }
