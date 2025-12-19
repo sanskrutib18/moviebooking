@@ -47,17 +47,17 @@ spec:
 
     environment {
         // College Nexus Docker registry (inside cluster)
-        DOCKER_REGISTRY = "nexus-service-for-docker-hosted-registry.nexus.svc.cluster.local:8085"
+        DOCKER_REGISTRY      = "nexus-service-for-docker-hosted-registry.nexus.svc.cluster.local:8085"
 
-        IMAGE_NAME       = "2401014_moviebooking/movie-website"
-        IMAGE_TAG        = "${env.BUILD_NUMBER}"
-        FULL_IMAGE_NAME  = "${DOCKER_REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG}"
+        IMAGE_NAME           = "2401014_moviebooking/movie-website"
+        IMAGE_TAG            = "${env.BUILD_NUMBER}"
+        FULL_IMAGE_NAME      = "${DOCKER_REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG}"
 
         // SonarQube (SQ) details for your project
-        SONAR_HOST        = "http://my-sonarqube-sonarqube.sonarqube.svc.cluster.local:9000"
-        SONAR_PROJECT_KEY = "2401014-moviebooking"
-        SONAR_PROJECT_NAME = "2401014"
-        SONAR_TOKEN       = "sqp_34d6a677093e00da2be6a55db046c1dac3735a46"
+        SONAR_HOST           = "http://my-sonarqube-sonarqube.sonarqube.svc.cluster.local:9000"
+        SONAR_PROJECT_KEY    = "2401014-moviebooking"
+        SONAR_PROJECT_NAME   = "2401014"
+        SONAR_TOKEN          = "sqp_34d6a677093e00da2be6a55db046c1dac3735a46"
 
         KUBECONFIG_CREDENTIAL_ID = "kubeconfig-secret"
     }
@@ -86,7 +86,6 @@ spec:
             }
         }
 
-
         stage('Build Docker Image') {
             steps {
                 echo 'Building Docker image...'
@@ -104,15 +103,14 @@ spec:
             steps {
                 echo 'Pushing Docker image to Nexus registry...'
                 container('dind') {
-                    sh '''
+                    sh """
                         echo "Logging in to Nexus Docker Registry..."
-                        docker login nexus-service-for-docker-hosted-registry.nexus.svc.cluster.local:8085 \
-                          -u student -p Imcc@2025
+                        echo "Imcc@2025" | docker login -u student --password-stdin ${DOCKER_REGISTRY}
 
                         echo "Pushing image..."
                         docker push ${FULL_IMAGE_NAME}
                         docker push ${DOCKER_REGISTRY}/${IMAGE_NAME}:latest
-                    '''
+                    """
                 }
             }
         }
@@ -122,9 +120,9 @@ spec:
                 echo 'Deploying to Kubernetes cluster...'
                 container('kubectl') {
                     withCredentials([file(credentialsId: "${KUBECONFIG_CREDENTIAL_ID}", variable: 'KUBECONFIG')]) {
-                        sh '''
+                        sh """
                             # Update deployment image
-                            sed -i "s|nexus-service-for-docker-hosted-registry.nexus.svc.cluster.local:8085/2401014_moviebooking/movie-website:latest|${FULL_IMAGE_NAME}|g" movie-website/k8s/deployment.yaml
+                            sed -i "s|image:.*movie-website:latest|image: ${FULL_IMAGE_NAME}|g" movie-website/k8s/deployment.yaml
 
                             # Apply Kubernetes manifests
                             kubectl apply -f movie-website/k8s/deployment.yaml
@@ -135,7 +133,7 @@ spec:
 
                             # Get service information
                             kubectl get services movie-website
-                        '''
+                        """
                     }
                 }
             }
