@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: movie-website
-  namespace: 2401014
+  namespace: "2401014"
   labels:
     app: movie-website
     version: v1
