@@ -71,18 +71,14 @@ spec:
         stage('SonarQube Analysis') {
             steps {
                 container('sonar-scanner') {
-                    withCredentials([
-                        string(credentialsId: 'sonartoken-2401014', variable: 'SONAR_TOKEN')
-                    ]) {
-                        sh '''
-                            sonar-scanner \
-                              -Dsonar.projectKey=2401014-moviebooking \
-                              -Dsonar.sources=. \
-                              -Dsonar.exclusions=node_modules/,dist/** \
-                              -Dsonar.host.url=${SONAR_HOST} \
-                              -Dsonar.token=${SONAR_TOKEN}
-                        '''
-                    }
+                    sh '''
+                        sonar-scanner \
+                          -Dsonar.projectKey=2401014-moviebooking \
+                          -Dsonar.sources=. \
+                          -Dsonar.exclusions=node_modules/,dist/** \
+                          -Dsonar.host.url=${SONAR_HOST} \
+                          -Dsonar.token=sqp_34d6a677093e00da2be6a55db046c1dac3735a46
+                    '''
                 }
             }
         }
